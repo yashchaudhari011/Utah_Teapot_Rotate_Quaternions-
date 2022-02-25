@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+
+<title>Rotating Square</title>
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+attribute vec4 vPosition;
+attribute vec4 vColor;
+attribute vec4 vNormal;
+
+//varying vec4 N,L,E;
+
+uniform float theta;
+uniform vec4 vertColor;
+uniform vec4 lightPosition;
+uniform vec4 r;
+
+uniform mat4 rotateMatrix;
+uniform mat4 orthoMatrix;
+uniform mat4 camMatrix;
+uniform mat4 perspMatrix;
+
+varying vec3 N, L, E;
+
+
+// varying type variable to share with fragment shader, as the color
+// will be sent to the fragment shader
+varying vec4 fColor;
+
+// quaternion multiplier
+vec4 multq(vec4 a, vec4 b)
+{
+   return(vec4(a.x*b.x - dot(a.yzw, b.yzw), a.x*b.yzw+b.x*a.yzw+cross(b.yzw, a.yzw)));
+}
+
+// inverse quaternion
+
+vec4 invq(vec4 a)
+{
+   return(vec4(a.x, -a.yzw)/dot(a,a));
+}
+
+
+
+void main() {
+	vec4 p , pNormal;
+	p = vec4(0.0, vPosition.xyz);  
+  	p = multq(r, multq(p, invq(r))); 
+	
+	pNormal = vec4(0.0, vNormal.xyz); 
+	pNormal = multq(r, multq(pNormal, invq(r)));
+	vec3 light = (camMatrix * lightPosition).xyz;
+	
+	L = normalize( light - p.yzw );
+    E =  -normalize(p.yzw);
+    N = normalize( mat3(camMatrix)*(pNormal.yzw));
+    
+	gl_Position = perspMatrix * camMatrix * vec4(p.yzw , 1.0) ;
+
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+
+precision mediump float;
+uniform vec4 ambientProduct;
+uniform vec4 diffuseProduct;
+uniform vec4 specularProduct;
+uniform float shininess;
+varying vec3 N, L, E;
+
+// vertex color coming from vertex shader
+//varying vec4 fColor;
+
+void main() {
+
+	vec4 fColor;
+    vec3 H = normalize( L + E );
+    vec4 ambient = ambientProduct;
+    float Kd = max( dot(L, N), 0.0 );
+    vec4  diffuse = Kd*diffuseProduct;
+    float Ks = pow( max(dot(N, H), 0.0), shininess );
+    vec4  specular = Ks * specularProduct;
+        if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
+    fColor = ambient + diffuse +specular;
+    //fColor = specular;
+    fColor.a = 1.0;
+    gl_FragColor = fColor;
+}
+
+</script>
+
+<script type="text/javascript" src="..\js\webgl-utils.js"></script>
+<script type="text/javascript" src="..\js\initShaders.js"></script>
+<script type="text/javascript" src="..\js\MV.js"></script>
+<script type="text/javascript" src="..\js\vertices.js"></script>
+<script type="text/javascript" src="..\js\patches.js"></script>
+<script type="text/javascript" src="..\js\createTeapotData.js"></script>
+
+<!-- <script type="text/javascript" src="..\js\one_square.js"></script> -->
+<!-- <script type="text/javascript" src="..\js\RCube.js"></script> -->
+<script type="text/javascript" src="..\js\RotCube.js"></script>
+</head>   
+
+<body>
+
+<canvas id="gl-canvas" width="512" height="512">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+<br>
+<br>
+<br>
+
+<div class="lightPosition">
+	<br>
+	<strong>Light Source Position</strong>
+	<br>
+	X<input type="range" min="-200.0" max="400.0" value="100" step="0.01" class="slider" id="lpx">
+	Y<input type="range" min="-200.0" max="400.0" value="100" step="0.01" class="slider" id="lpy">
+	Z<input type="range" min="-400.0" max="400.0" value="100" step="0.01" class="slider" id="lpz">
+	<br>
+</div>
+<br>
+<div class="Defuse_Reflectivity">
+	<br>
+	<strong>Diffuse Reflectivity Constant</strong>
+	<br>
+	Red<input type="range" min="0.0" max="1.0" value="0.5" step="0.1" class="slider" id="drx">
+	Green<input type="range" min="0.0" max="1.0" value="0.5" step="0.1" class="slider" id="dry">
+	Blue<input type="range" min="0.0" max="1.0" value="0.5" step="0.1" class="slider" id="drz">
+</div>
+<br>
+<div class="Specular_Reflectivity">
+	<br>
+	<strong>Specular Reflectivity Constant</strong>
+	<br>
+	Red<input type="range" min="0.0" max="1.0" value="0.5" step="0.1" class="slider" id="srx">
+	Green<input type="range" min="0.0" max="1.0" value="0.5" step="0.1" class="slider" id="sry">
+	Blue<input type="range" min="0.0" max="1.0" value="0.5" step="0.1" class="slider" id="srz">
+</div>
+<br>
+<div class="Shininess">
+	<br>
+	<strong>Shininess</strong>
+	<br>
+	Shininess<input type="range" min="0.0" max="500.0" value="500" class="slider" id="shine">
+</div>
+
+</body>
+</html>
+
+<!-- <br>
+<button id = RotateX value="true">Rotate Along X-axis</button>
+<button id = RotateY>Rotate Along Y-axis</button>
+<button id = RotateZ>Rotate Along Z-axis</button>
+<br>
+<br>	
+<div class="WidthSlider">
+	Width<input type="range" min="-100.0" max="100.0" value="2.0" class="slider" id="WidthSlider">
+</div>
+<br>
+<div class="HeightSlider">
+	Height<input type="range" min="-100.0" max="100.0" value="2.0" class="slider" id="HeightSlider">
+</div>
+<br>
+<div class="FarSlider">
+	Far<input type="range" min="50.0" max="350.0" value="300.0" class="slider" id="FarSlider">
+</div>
+<br>
+<div class="NearSlider">
+	Near<input type="range" min="-10.0" max="350.0" value="40.0" class="slider" id="NearSlider">
+</div>
+<br> -->
